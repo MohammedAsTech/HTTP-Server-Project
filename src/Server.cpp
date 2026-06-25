@@ -83,6 +83,20 @@ void Server::acceptLoop() {
 
         std::cout << "Connection accepted from client IP: " << ip_str << std::endl;
 
+        char buffer[4096] = {0};
+        ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+        if (bytes_received < 0) {
+            std::cerr << "Warning: recv() failed." << std::endl;
+            close(client_fd);
+            continue;
+        }
+
+        std::cout << "----- Raw request -----\n" << buffer << "\n------------------------" << std::endl;
+
+        const std::string response =
+            "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nHello";
+        send(client_fd, response.c_str(), response.size(), 0);
+
         close(client_fd);
     }
 }
