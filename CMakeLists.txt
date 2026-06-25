@@ -9,4 +9,7 @@ include_directories(include)
 add_executable(my_server
         src/main.cpp
         src/Server.cpp
+        include/HttpRequest.h
+        include/HttpParser.h
+        src/HttpParser.cpp
 )
