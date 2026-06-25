@@ -12,4 +12,8 @@ add_executable(my_server
         include/HttpRequest.h
         include/HttpParser.h
         src/HttpParser.cpp
+        include/HttpResponse.h
+        include/Handler.h
+        include/Router.h
+        src/Router.cpp
 )
