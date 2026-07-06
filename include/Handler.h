@@ -11,18 +11,14 @@ public:
 class HelloHandler : public Handler {
 public:
     void handle(const HttpRequest& req, HttpResponse& res) override {
-        res.statusCode = 200;
-        res.statusText = "OK";
-        res.body = "Hello from handler";
+        res.ok("Hello from handler");
     }
 };
 
 class NotFoundHandler : public Handler {
 public:
     void handle(const HttpRequest& req, HttpResponse& res) override {
-        res.statusCode = 404;
-        res.statusText = "Not Found";
-        res.body = "404 Not Found";
+        res.notFound();
     }
 };
 #endif

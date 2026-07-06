@@ -5,8 +5,15 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <cstring>
+#include "HttpRequest.h"
+#include "HttpResponse.h"
+#include "HttpParser.h"
+#include "Handler.h"
+#include "Router.h"
 
-Server::Server(const std::string& port) : m_port(port), m_server_fd(-1) {}
+Server::Server(const std::string& port) : m_port(port), m_server_fd(-1) {
+    m_router.addRoute("GET", "/", std::make_shared<HelloHandler>());
+}
 
 Server::~Server() {
     if (m_server_fd != -1) {
@@ -18,12 +25,10 @@ Server::~Server() {
 void Server::setupSocket() {
     struct addrinfo hints, *res;
 
-
     std::memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
-
 
     if (getaddrinfo(nullptr, m_port.c_str(), &hints, &res) != 0) {
         std::cerr << "Error: getaddrinfo failed." << std::endl;
@@ -71,7 +76,6 @@ void Server::acceptLoop() {
             continue;
         }
 
-
         char ip_str[INET6_ADDRSTRLEN];
         if (client_addr.ss_family == AF_INET) {
             struct sockaddr_in* s = (struct sockaddr_in*)&client_addr;
@@ -93,9 +97,17 @@ void Server::acceptLoop() {
 
         std::cout << "----- Raw request -----\n" << buffer << "\n------------------------" << std::endl;
 
-        const std::string response =
-            "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nHello";
-        send(client_fd, response.c_str(), response.size(), 0);
+        // Step 3 — parse the raw bytes into a structured request
+        HttpRequest req = HttpParser::parse(std::string(buffer, bytes_received));
+
+        // Step 4 — dispatch to the right handler
+        Handler* handler = m_router.dispatch(req);
+        HttpResponse res;
+        handler->handle(req, res);
+
+        // Step 5 — let res build the HTTP response string
+        std::string raw = res.build();
+        send(client_fd, raw.c_str(), raw.size(), 0);
 
         close(client_fd);
     }
