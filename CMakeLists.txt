@@ -17,4 +17,5 @@ add_executable(my_server
         include/Router.h
         src/Router.cpp
         src/HttpResponse.cpp
+        src/StaticFileHandler.cpp
 )

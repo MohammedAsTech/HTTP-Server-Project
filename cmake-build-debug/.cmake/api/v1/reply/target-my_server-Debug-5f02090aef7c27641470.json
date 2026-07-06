@@ -67,7 +67,8 @@
 				1,
 				4,
 				8,
-				9
+				9,
+				10
 			]
 		}
 	],
@@ -104,7 +105,8 @@
 				1,
 				4,
 				8,
-				9
+				9,
+				10
 			]
 		},
 		{
@@ -174,6 +176,12 @@
 			"backtrace" : 1,
 			"compileGroupIndex" : 0,
 			"path" : "src/HttpResponse.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "src/StaticFileHandler.cpp",
 			"sourceGroupIndex" : 0
 		}
 	],
