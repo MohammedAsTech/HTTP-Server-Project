@@ -10,6 +10,7 @@
 #include "HttpParser.h"
 #include "Handler.h"
 #include "Router.h"
+#include "Logger.h"
 
 Server::Server(const std::string& port)
     : m_port(port), m_server_fd(-1), m_threadPool(4) {
@@ -66,15 +67,15 @@ void Server::setupSocket() {
 }
 
 void Server::handleClient(int client_fd) {
+    auto start = std::chrono::steady_clock::now();
+
     char buffer[4096] = {0};
     ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
     if (bytes_received < 0) {
-        std::cerr << "Warning: recv() failed." << std::endl;
+        Logger::instance().error("recv() failed");
         close(client_fd);
         return;
     }
-
-    std::cout << "----- Raw request -----\n" << buffer << "\n------------------------" << std::endl;
 
     HttpRequest req = HttpParser::parse(std::string(buffer, bytes_received));
     Handler* handler = m_router.dispatch(req);
@@ -83,10 +84,13 @@ void Server::handleClient(int client_fd) {
 
     std::string raw = res.build();
     send(client_fd, raw.c_str(), raw.size(), 0);
-
     close(client_fd);
-}
 
+    auto end = std::chrono::steady_clock::now();
+    long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    Logger::instance().log(req.method, req.path, res.getStatusCode(), ms);
+}
 void Server::acceptLoop() {
     std::cout << "Entering accept loop..." << std::endl;
 

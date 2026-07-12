@@ -15,6 +15,7 @@ public:
     HttpResponse& notFound();
     HttpResponse& badRequest();
     HttpResponse& serverError();
+    int getStatusCode() const { return m_statusCode; }
 
 private:
     int m_statusCode;
