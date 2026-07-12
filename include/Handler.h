@@ -37,5 +37,19 @@ private:
     std::string m_rootDir;
     std::string getMimeType(const std::string& ext);
 };
+class EchoHandler : public Handler {
+public:
+    void handle(const HttpRequest& req, HttpResponse& res) override {
+        // mirror the content type back if the visitor specified one
+        auto it = req.headers.find("Content-Type");
+        std::string contentType = (it != req.headers.end())
+            ? it->second
+            : "text/plain";
+
+        res.setStatus(200, "OK");
+        res.setHeader("Content-Type", contentType);
+        res.setBody(req.body);
+    }
+};
 
 #endif

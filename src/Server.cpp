@@ -16,6 +16,7 @@ Server::Server(const std::string& port)
     : m_port(port), m_server_fd(-1), m_threadPool(4) {
     m_router.addRoute("GET", "/", std::make_shared<HelloHandler>());
     m_router.addRoute("GET", "/index.html", std::make_shared<StaticFileHandler>("./www"));
+    m_router.addRoute("POST", "/echo", std::make_shared<EchoHandler>());
 }
 
 Server::~Server() {

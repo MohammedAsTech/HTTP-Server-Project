@@ -38,6 +38,15 @@ HttpRequest HttpParser::parse(const std::string& raw) {
         pos = next + 2;
     }
 
+    // trim body to Content-Length if specified
+    auto it = req.headers.find("Content-Length");
+    if (it != req.headers.end()) {
+        size_t contentLength = std::stoul(it->second);
+        if (req.body.size() > contentLength) {
+            req.body = req.body.substr(0, contentLength);
+        }
+    }
+
     req.valid = true;
     return req;
 }
