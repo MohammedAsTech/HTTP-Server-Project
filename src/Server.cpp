@@ -81,10 +81,20 @@ void Server::handleClient(int client_fd) {
     try {
         auto start = std::chrono::steady_clock::now();
 
+        // use select() for timeout — more reliable on WSL than SO_RCVTIMEO
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(client_fd, &read_fds);
         struct timeval timeout;
         timeout.tv_sec = 5;
         timeout.tv_usec = 0;
-        setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+
+        int ready = select(client_fd + 1, &read_fds, nullptr, nullptr, &timeout);
+        if (ready <= 0) {
+            // timeout or error — silent visitor, close and move on
+            close(client_fd);
+            return;
+        }
 
         char buffer[4096] = {0};
         ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);

@@ -268,7 +268,7 @@ echo "════════════════════════�
 echo " silent visitor timeout"
 echo "══════════════════════════════════════════════════"
 
-check "silent visitor times out cleanly" "handled" "$(timeout 7 bash -c "echo '' | nc -q6 localhost $PORT" > /dev/null 2>&1; echo 'handled')"
+check "silent visitor times out cleanly" "handled" "$(timeout 7 bash -c 'exec 3<>/dev/tcp/localhost/'"$PORT"'; sleep 6; exec 3>&-' > /dev/null 2>&1; echo 'handled')"
 check "server still alive after silent visitor" "200" "$(curl -s -o /dev/null -w "%{http_code}" $BASE/)"
 
 echo ""
