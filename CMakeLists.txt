@@ -18,4 +18,6 @@ add_executable(my_server
         src/Router.cpp
         src/HttpResponse.cpp
         src/StaticFileHandler.cpp
+        include/ThreadPool.h
+        src/ThreadPool.cpp
 )
