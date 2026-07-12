@@ -11,9 +11,10 @@
 #include "Handler.h"
 #include "Router.h"
 
-Server::Server(const std::string& port) : m_port(port), m_server_fd(-1) {
+Server::Server(const std::string& port)
+    : m_port(port), m_server_fd(-1), m_threadPool(4) {
     m_router.addRoute("GET", "/", std::make_shared<HelloHandler>());
-    m_router.addRoute("GET", "/static", std::make_shared<StaticFileHandler>("./www"));
+    m_router.addRoute("GET", "/index.html", std::make_shared<StaticFileHandler>("./www"));
 }
 
 Server::~Server() {
@@ -64,6 +65,28 @@ void Server::setupSocket() {
     std::cout << "Server successfully initialized on port " << m_port << std::endl;
 }
 
+void Server::handleClient(int client_fd) {
+    char buffer[4096] = {0};
+    ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+    if (bytes_received < 0) {
+        std::cerr << "Warning: recv() failed." << std::endl;
+        close(client_fd);
+        return;
+    }
+
+    std::cout << "----- Raw request -----\n" << buffer << "\n------------------------" << std::endl;
+
+    HttpRequest req = HttpParser::parse(std::string(buffer, bytes_received));
+    Handler* handler = m_router.dispatch(req);
+    HttpResponse res;
+    handler->handle(req, res);
+
+    std::string raw = res.build();
+    send(client_fd, raw.c_str(), raw.size(), 0);
+
+    close(client_fd);
+}
+
 void Server::acceptLoop() {
     std::cout << "Entering accept loop..." << std::endl;
 
@@ -88,29 +111,9 @@ void Server::acceptLoop() {
 
         std::cout << "Connection accepted from client IP: " << ip_str << std::endl;
 
-        char buffer[4096] = {0};
-        ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-        if (bytes_received < 0) {
-            std::cerr << "Warning: recv() failed." << std::endl;
-            close(client_fd);
-            continue;
-        }
-
-        std::cout << "----- Raw request -----\n" << buffer << "\n------------------------" << std::endl;
-
-        // Step 3 — parse the raw bytes into a structured request
-        HttpRequest req = HttpParser::parse(std::string(buffer, bytes_received));
-
-        // Step 4 — dispatch to the right handler
-        Handler* handler = m_router.dispatch(req);
-        HttpResponse res;
-        handler->handle(req, res);
-
-        // Step 5 — let res build the HTTP response string
-        std::string raw = res.build();
-        send(client_fd, raw.c_str(), raw.size(), 0);
-
-        close(client_fd);
+        m_threadPool.submit([this, client_fd]() {
+            handleClient(client_fd);
+        });
     }
 }
 
