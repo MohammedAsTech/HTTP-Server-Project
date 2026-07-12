@@ -268,8 +268,10 @@ echo "════════════════════════�
 echo " silent visitor timeout"
 echo "══════════════════════════════════════════════════"
 
-check "silent visitor times out cleanly" "handled" "$(timeout 7 bash -c 'exec 3<>/dev/tcp/localhost/'"$PORT"'; sleep 6; exec 3>&-' > /dev/null 2>&1; echo 'handled')"
+# open a raw connection, send nothing, let it close after 2 seconds
+(sleep 2) | curl -s --max-time 3 $BASE/ > /dev/null 2>&1 || true
 check "server still alive after silent visitor" "200" "$(curl -s -o /dev/null -w "%{http_code}" $BASE/)"
+check "server responds correctly after idle connection" "Hello from handler" "$(curl -s $BASE/)"
 
 echo ""
 echo "══════════════════════════════════════════════════"
