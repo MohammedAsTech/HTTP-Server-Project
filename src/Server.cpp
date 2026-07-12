@@ -16,8 +16,8 @@
 Server::Server(const std::string& port)
     : m_port(port), m_server_fd(-1), m_threadPool(4) {
     m_router.addRoute("GET", "/", std::make_shared<HelloHandler>());
-    m_router.addRoute("GET", "/index.html", std::make_shared<StaticFileHandler>("./www"));
     m_router.addRoute("POST", "/echo", std::make_shared<EchoHandler>());
+    m_router.addPrefixRoute("GET", "/", std::make_shared<StaticFileHandler>("./www"));
 }
 
 Server::~Server() {
@@ -81,7 +81,6 @@ void Server::handleClient(int client_fd) {
     try {
         auto start = std::chrono::steady_clock::now();
 
-        // set 5 second timeout so silent visitors don't freeze a waiter
         struct timeval timeout;
         timeout.tv_sec = 5;
         timeout.tv_usec = 0;
@@ -95,7 +94,6 @@ void Server::handleClient(int client_fd) {
             return;
         }
 
-        // reject enormous packages
         if (bytes_received >= 4095) {
             HttpResponse res;
             res.badRequest();
@@ -106,10 +104,8 @@ void Server::handleClient(int client_fd) {
             return;
         }
 
-        // Step 3 — parse the raw bytes into a structured request
         HttpRequest req = HttpParser::parse(std::string(buffer, bytes_received));
 
-        // reject gibberish
         if (!req.valid) {
             HttpResponse res;
             res.badRequest();
@@ -120,12 +116,10 @@ void Server::handleClient(int client_fd) {
             return;
         }
 
-        // Step 4 — dispatch to the right handler
         Handler* handler = m_router.dispatch(req);
         HttpResponse res;
         handler->handle(req, res);
 
-        // Step 5 — let res build the HTTP response string
         std::string raw = res.build();
         send(client_fd, raw.c_str(), raw.size(), 0);
         close(client_fd);
