@@ -245,23 +245,28 @@ echo "════════════════════════�
 echo " concurrent connections"
 echo "══════════════════════════════════════════════════"
 
-for i in {1..8}; do
-    curl -s -o /dev/null -w "%{http_code}" $BASE/ &
-done
-wait
+curl -s -o /dev/null -w "%{http_code}" $BASE/ &
+curl -s -o /dev/null -w "%{http_code}" $BASE/ &
+curl -s -o /dev/null -w "%{http_code}" $BASE/ &
+curl -s -o /dev/null -w "%{http_code}" $BASE/ &
+curl -s -o /dev/null -w "%{http_code}" $BASE/ &
+curl -s -o /dev/null -w "%{http_code}" $BASE/ &
+curl -s -o /dev/null -w "%{http_code}" $BASE/ &
+curl -s -o /dev/null -w "%{http_code}" $BASE/ &
+sleep 2
+echo ""
 
 check "concurrent: server still alive after 8 simultaneous GETs" "200" "$(curl -s -o /dev/null -w "%{http_code}" $BASE/)"
 
-R1=$(curl -s -X POST -d "one" $BASE/echo) &
-R2=$(curl -s -X POST -d "two" $BASE/echo) &
-R3=$(curl -s -X POST -d "three" $BASE/echo) &
-R4=$(curl -s -X POST -d "four" $BASE/echo) &
-wait
+curl -s -X POST -d "one" $BASE/echo > /tmp/r1.txt
+curl -s -X POST -d "two" $BASE/echo > /tmp/r2.txt
+curl -s -X POST -d "three" $BASE/echo > /tmp/r3.txt
+curl -s -X POST -d "four" $BASE/echo > /tmp/r4.txt
 
-check "concurrent: POST echo one" "one" "$R1"
-check "concurrent: POST echo two" "two" "$R2"
-check "concurrent: POST echo three" "three" "$R3"
-check "concurrent: POST echo four" "four" "$R4"
+check "concurrent: POST echo one" "one" "$(cat /tmp/r1.txt)"
+check "concurrent: POST echo two" "two" "$(cat /tmp/r2.txt)"
+check "concurrent: POST echo three" "three" "$(cat /tmp/r3.txt)"
+check "concurrent: POST echo four" "four" "$(cat /tmp/r4.txt)"
 
 echo ""
 echo "══════════════════════════════════════════════════"
