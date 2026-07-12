@@ -20,4 +20,5 @@ add_executable(my_server
         src/StaticFileHandler.cpp
         include/ThreadPool.h
         src/ThreadPool.cpp
+        include/Logger.h
 )
