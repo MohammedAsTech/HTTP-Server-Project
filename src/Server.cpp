@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <cstring>
+#include <csignal>
 #include "HttpRequest.h"
 #include "HttpResponse.h"
 #include "HttpParser.h"
@@ -24,6 +25,15 @@ Server::~Server() {
         close(m_server_fd);
         std::cout << "Server socket closed." << std::endl;
     }
+}
+
+void Server::stop() {
+    m_threadPool.shutdown();
+    if (m_server_fd != -1) {
+        close(m_server_fd);
+        m_server_fd = -1;
+    }
+    std::cout << "Server stopped cleanly." << std::endl;
 }
 
 void Server::setupSocket() {
@@ -68,30 +78,72 @@ void Server::setupSocket() {
 }
 
 void Server::handleClient(int client_fd) {
-    auto start = std::chrono::steady_clock::now();
+    try {
+        auto start = std::chrono::steady_clock::now();
 
-    char buffer[4096] = {0};
-    ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-    if (bytes_received < 0) {
-        Logger::instance().error("recv() failed");
+        // set 5 second timeout so silent visitors don't freeze a waiter
+        struct timeval timeout;
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
+        setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+
+        char buffer[4096] = {0};
+        ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+
+        if (bytes_received <= 0) {
+            close(client_fd);
+            return;
+        }
+
+        // reject enormous packages
+        if (bytes_received >= 4095) {
+            HttpResponse res;
+            res.badRequest();
+            std::string raw = res.build();
+            send(client_fd, raw.c_str(), raw.size(), 0);
+            close(client_fd);
+            Logger::instance().log("UNKNOWN", "/", 400, 0);
+            return;
+        }
+
+        // Step 3 — parse the raw bytes into a structured request
+        HttpRequest req = HttpParser::parse(std::string(buffer, bytes_received));
+
+        // reject gibberish
+        if (!req.valid) {
+            HttpResponse res;
+            res.badRequest();
+            std::string raw = res.build();
+            send(client_fd, raw.c_str(), raw.size(), 0);
+            close(client_fd);
+            Logger::instance().log("UNKNOWN", "/", 400, 0);
+            return;
+        }
+
+        // Step 4 — dispatch to the right handler
+        Handler* handler = m_router.dispatch(req);
+        HttpResponse res;
+        handler->handle(req, res);
+
+        // Step 5 — let res build the HTTP response string
+        std::string raw = res.build();
+        send(client_fd, raw.c_str(), raw.size(), 0);
         close(client_fd);
-        return;
+
+        auto end = std::chrono::steady_clock::now();
+        long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        Logger::instance().log(req.method, req.path, res.getStatusCode(), ms);
+
+    } catch (const std::exception& e) {
+        Logger::instance().error(std::string("Handler exception: ") + e.what());
+        HttpResponse res;
+        res.serverError();
+        std::string raw = res.build();
+        send(client_fd, raw.c_str(), raw.size(), 0);
+        close(client_fd);
     }
-
-    HttpRequest req = HttpParser::parse(std::string(buffer, bytes_received));
-    Handler* handler = m_router.dispatch(req);
-    HttpResponse res;
-    handler->handle(req, res);
-
-    std::string raw = res.build();
-    send(client_fd, raw.c_str(), raw.size(), 0);
-    close(client_fd);
-
-    auto end = std::chrono::steady_clock::now();
-    long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
-    Logger::instance().log(req.method, req.path, res.getStatusCode(), ms);
 }
+
 void Server::acceptLoop() {
     std::cout << "Entering accept loop..." << std::endl;
 

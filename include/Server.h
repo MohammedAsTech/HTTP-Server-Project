@@ -13,6 +13,7 @@ public:
     Server(const std::string& port);
     ~Server();
     void start();
+    void stop();
 
 private:
     std::string m_port;
